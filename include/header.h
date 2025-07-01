@@ -72,6 +72,10 @@ extern client_t clients[MAX_CLIENT]; // Liste des clients en cours
 extern int client_count; // Nombre de clients connecter
 
 
+typedef struct DATE{
+    int day, month, year;
+}date_t;
+
 //client mutex
 extern pthread_mutex_t clients_mutex; 
 extern int server_running; 

@@ -57,6 +57,22 @@
   "C_Cpp_Runner.useLinkTimeOptimization": false,
   "C_Cpp_Runner.msvcSecureNoWarnings": false,
   "files.associations": {
-    "server.h": "c"
+    "server.h": "c",
+    "array": "cpp",
+    "functional": "cpp",
+    "random": "cpp",
+    "format": "cpp",
+    "new": "cpp",
+    "ostream": "cpp",
+    "span": "cpp",
+    "streambuf": "cpp",
+    "type_traits": "cpp",
+    "tuple": "cpp",
+    "text_encoding": "cpp",
+    "variant": "cpp",
+    "all.h": "c",
+    "array.h": "c",
+    "random.h": "c",
+    "helper.h": "c"
   }
 }

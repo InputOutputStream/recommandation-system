@@ -15,6 +15,16 @@
  * 
  */
 
+ // Variables globales avec mutex pour le controle d'accescote serveur
+client_t clients[MAX_CLIENT]; // Liste des clients en cours
+int client_count; // Nombre de clients connecter
+
+//client mutex
+pthread_mutex_t clients_mutex; 
+int server_running; 
+
+
+
 
 int start_reco_server()
 {
@@ -130,6 +140,12 @@ void *handle_client(void *arg)
 
 }
 
+
+void handle_client_message(char *message, char *result)
+{
+
+    return;
+}
 
 
 void broadcast_message(client_t *sender, const char *message) {

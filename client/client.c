@@ -19,6 +19,27 @@
 
 
 
+
+
+client_t *new_client()
+{
+    return calloc(1, sizeof(client_t));
+}
+
+void clean(client_t *client)
+{
+    free(client);
+    return;
+}
+
+
+void start_client(client_t *client)
+{
+
+    return;
+}
+
+
 // Reconnexion automatique côté client
 int auto_reconnect(client_app_t *app) {
     int attempts = 0;

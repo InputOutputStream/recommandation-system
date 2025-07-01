@@ -14,6 +14,12 @@
 
 #include <header.h>
 
+
+// MACROS
+
+
+
+
 // client.h
 typedef struct CLIENT_APP {
     // Connexion réseau
@@ -38,6 +44,9 @@ typedef struct CLIENT_APP {
 
 
 
-
+client_t *new_client();
+int connect_to_server();
+void start_client(client_t *client);
+void clean(client_t *client);
 
 #endif // !CLIENT_H

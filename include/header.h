@@ -6,12 +6,14 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <pthread.h>
+#include <semaphore.h>
 
 
 #define MAX_CLIENT 250
 #define MAX_MESSAGE_LENGHT 1024 // increase later or not
 #define DEFAULT_PORT 8008
 #define NAME_LENGHT 128
+#define CLIENT_TIMEOUT 10000
 
 
 /**
@@ -65,11 +67,14 @@ typedef enum {
     MSG_PING            // Ping du serveur
 } server_message_type_t;
 
-// Variables globales avec mutex pour le controle d'acces
+// Variables globales avec mutex pour le controle d'accescote serveur
 extern client_t clients[MAX_CLIENT]; // Liste des clients en cours
 extern int client_count; // Nombre de clients connecter
+
+
+//client mutex
 extern pthread_mutex_t clients_mutex; 
 extern int server_running; 
 
 
-#endif // !CHAT_H
+#endif // !HEADER_H

@@ -3,21 +3,38 @@
 
 #include "header.h"
 
-/***
- *The server 
- * header file 
- */
+// Server function declarations
+int start_reco_server();
+void *accept_connections(void *arg);
+void *handle_client(void *arg);
 
-extern int start_reco_server();
+// Client management functions
+void disconnect_slow_client(client_t *client);
+void remove_client(client_t *client);
 
-extern void *accept_connections(void *arg);
-extern void handle_client_message(char *message, char *result);
+// Utility functions
+void init_server();
+void cleanup_server();
+void log_message(const char *format, ...);
 
-extern void display_messages(const char *user_name, const char *messages);
-extern void update_client_list(client_t *list);
-extern void update_status(client_t*client_list, const char *status);
-extern void disconnect_slow_client(client_t *client);
-extern void *handle_client(void *arg);
-extern void broadcast_message(client_t *sender, const char *message);
+// Global recommendation system
+extern recommendation_system_t rec_system;
 
-#endif // !
+// Recommendation system functions
+void init_recommendation_system();
+void load_ratings_data(const char* filename);
+int add_rating(int user_id, int item_id, int category_id, float rating);
+void get_recommendations(recommendation_request_t* request, recommendation_result_t* results, int* num_results);
+
+// Algorithm implementations
+void knn_recommendation(int user_id, int k, recommendation_result_t* results, int* num_results, int max_results);
+void matrix_factorization_recommendation(int user_id, recommendation_result_t* results, int* num_results, int max_results);
+void graph_recommendation(int user_id, recommendation_result_t* results, int* num_results, int max_results);
+
+// Global variables (extern declarations)
+extern client_t clients[MAX_CLIENT];
+extern int client_count;
+extern pthread_mutex_t clients_mutex;
+extern int server_running;
+
+#endif // SERVER_H

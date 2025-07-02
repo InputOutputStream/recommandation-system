@@ -4,7 +4,9 @@
 #include <math.h>
 #include <time.h>
 #include <stdbool.h>
-#include "../include/traitement.h"
+
+#include "header.h"
+#include "traitement.h"
 
 static bool double_equals(double a, double b) {
     const double epsilon = 1e-9;
@@ -140,7 +142,6 @@ ndarray_t get_timed_data_array(ndarray_t data, date_t start, date_t stop)
 }
 
 
-
 ndarray_t load_timed_data(char *path, date_t start, date_t stop)
 {
     // Input validation
@@ -201,10 +202,36 @@ ndarray_t nettoyer_transaction(ndarray_t transactions, size_t minU, size_t minI)
     return get_lines(&transactions, lines, idx);
 }
 
-void train_test_split(ndarray_t this, float share, int random_state)
-{
-    return train_test_split_with_files(this, share, random_state, "data/train_split.txt", "data/test_split.txt");
+void _train_test_split(ndarray_t X, ndarray_t y, double test_size,
+                     ndarray_t *X_train, ndarray_t *y_train,
+                     ndarray_t *X_test, ndarray_t *y_test) {
+    
+    int n_samples = X.shape[0];
+    int n_features = X.shape[1];
+    int n_test = (int)(n_samples * test_size);
+    int n_train = n_samples - n_test;
+    
+    *X_train = array(n_train, n_features);
+    *y_train = array(n_train, 1);
+    *X_test = array(n_test, n_features);
+    *y_test = array(n_test, 1);
+    
+    // Simple split - first n_train for training, rest for testing
+    for(int i = 0; i < n_train; i++) {
+        for(int j = 0; j < n_features; j++) {
+            set(X_train, i, j, get(&X, i, j));
+        }
+        set(y_train, i, 0, get(&y, i, 0));
+    }
+    
+    for(int i = 0; i < n_test; i++) {
+        for(int j = 0; j < n_features; j++) {
+            set(X_test, i, j, get(&X, n_train + i, j));
+        }
+        set(y_test, i, 0, get(&y, n_train + i, 0));
+    }
 }
+
 
 // Garder les lignes de test où col0 ET col1 existent dans train
 void clean_files(char *test_file, char *train_file, char *result_file_path)
@@ -351,6 +378,7 @@ cleanup:
     }
 }
 
+
 void train_test_split_with_files(ndarray_t this, float share, int random_state, 
                                  char *train_file, char *test_file)
 {
@@ -388,9 +416,9 @@ void train_test_split_with_files(ndarray_t this, float share, int random_state,
     free(test_lines);
 }
 
-int main()
-{
-    all_treatment(NULL, NULL, "data/transactions.txt", 1000, 
-                  2, 2, 0.9, 0, NULL, NULL);
-    return 0;
-}
+// int main()
+// {
+//     all_treatment(NULL, NULL, "data/transactions.txt", 1000, 
+//                   2, 2, 0.9, 0, NULL, NULL);
+//     return 0;
+// }

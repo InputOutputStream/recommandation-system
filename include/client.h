@@ -1,52 +1,32 @@
-
 #ifndef CLIENT_H
 #define CLIENT_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <pthread.h>
-#include <semaphore.h>
-#include <time.h>
-#include <unistd.h>
+#include "header.h"
 
-#include <header.h>
-
-
-// MACROS
-
-
-
-
-// client.h
-typedef struct CLIENT_APP {
-    // Connexion réseau
-    int server_fd;
-    struct sockaddr_in server_addr;
-    
-    // État local
-    char username[64];
-    char current_channel[64];
-    int client_number;
-    int message_count;
-    
-    // Threads
-    pthread_t network_thread;    // Réception messages
-    pthread_t ui_thread;         // Interface utilisateur
-    pthread_t heartbeat_thread;  // Keep-alive
-    
-    // Synchronisation
-    pthread_mutex_t message_mutex;
-    int running;
-} client_app_t;
-
-
-
+// Client function declarations
 client_t *new_client();
-int connect_to_server();
-void start_client(client_t *client);
 void clean(client_t *client);
+void start_client(client_t *client);
+int connect_to_server(client_t *app);
+int auto_reconnect(client_t *app);
 
-#endif // !CLIENT_H
+// Client application functions
+int create_client_app(client_t *app);  // Modified signature
+void destroy_client_app(client_t *app);
+int start_client_app(client_t *app);
+void stop_client_app(client_t *app);
+
+// Recommendation handling functions
+void *receive_recommendations(void *arg);
+int send_recommendation_request(client_t *app, recommendation_request_t *req);
+
+// Request parsing function
+int parse_recommendation_command(const char *input, recommendation_request_t *req);
+
+// Utility function
+void show_recommendation_help();
+
+// Signal handling
+void client_signal_handler(int sig);
+
+#endif // CLIENT_H

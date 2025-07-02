@@ -215,7 +215,7 @@ int main() {
     
     // Get recommendations for each user
     for(int user = 0; user < graph.num_users; user++) {
-        get_recommendations(&graph, user, 3);
+        get_graph_recommendations(&graph, user, 3);
     }
     
     return 0;

@@ -23,7 +23,7 @@ int get_out_degree(b_graph_t* g, int node);
 void pagerank_iteration(b_graph_t* g);
 int has_converged(b_graph_t* g);
 void run_pagerank(b_graph_t* g);
-void get_recommendations(b_graph_t* g, int user_id, int top_n);
+void get_graph_recommendations(b_graph_t* g, int user_id, int top_n);
 void print_adjacency_matrix(b_graph_t* g);
 void print_pagerank_scores(b_graph_t* g);
 

@@ -23,7 +23,7 @@ def generate_data(n=300):
 # Generate and save
 data = generate_data(5000)
 
-output_path = "./server/data/transactions.txt"
+output_path = "./server/data/ratings.txt"
 with open(output_path, "w", newline="") as f:
     writer = csv.writer(f, delimiter=';')
     writer.writerows(data)

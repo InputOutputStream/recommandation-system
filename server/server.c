@@ -63,7 +63,7 @@ int start_reco_server() {
     init_server();
     
     // Load ratings data
-    load_ratings_data("ratings.txt");
+    load_ratings_data("server/data/ratings.txt");
     
     // Create socket
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -453,10 +453,10 @@ void matrix_factorization_recommendation(int user_id,
 
     // Entraîner le modèle MF sur toutes les données
     // Ex: batch_size=64, k=10, alpha=0.01, lambda=0.1, epochs=20
-    ndarray_t factorized_matrix = MF("train_data.txt", 64, 10, 0.01, 0.1, 20);
+    ndarray_t factorized_matrix = MF("server/data/train_data.txt", 64, 10, 0.01, 0.1, 20);
 
     // Prédire les notes pour toutes les paires utilisateur-item du test
-    ndarray_t predictions = Predict_all_MF(factorized_matrix, 64, "test_data.txt");
+    ndarray_t predictions = Predict_all_MF(factorized_matrix, 64, "server/data/test_data.txt");
 
     // Convertir en liste de transactions pour itérer facilement
     size_t num_transactions = 0;

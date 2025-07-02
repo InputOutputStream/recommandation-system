@@ -9,14 +9,14 @@ void *accept_connections(void *arg);
 void *handle_client(void *arg);
 
 // Client management functions
-void disconnect_slow_client(client_t *client);
 void remove_client(client_t *client);
 
 // Utility functions
 void init_server();
 void cleanup_server();
 void log_message(const char *format, ...);
-
+void format_recommendation_response(recommendation_request_t* req, recommendation_result_t* results, 
+                                  int num_results, char* response);
 // Global recommendation system
 extern recommendation_system_t rec_system;
 

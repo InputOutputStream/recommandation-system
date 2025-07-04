@@ -276,8 +276,8 @@ int send_recommendation_request(client_t *app, recommendation_request_t *req) {
     if (!app || !req || app->socket_fd < 0) return -1;
     
     char buffer[MAX_MESSAGE_LENGTH];
-    int len = snprintf(buffer, sizeof(buffer), "%d %d %d %d", 
-                       req->user_id, req->algorithm, req->num_recommendations, req->category_filter);
+    int len = snprintf(buffer, sizeof(buffer), "%d %d %d %d %d", 
+                       req->user_id, req->algorithm, req->k, req->num_recommendations, req->category_filter);
     
     if (len >= sizeof(buffer)) {
         printf("Request too long\n");
@@ -304,12 +304,21 @@ int parse_recommendation_command(const char *input, recommendation_request_t *re
         char algo_str[32];
         int count = 5; // default
         int category = -1; // default
+        int temp;
+        req->k == 0;
         
-        int parsed = sscanf(input + 11, "%d %s %d %d", &req->user_id, algo_str, &count, &category);
+        int parsed = sscanf(input + 11, "%d %s %d %d %d", &req->user_id, algo_str, &req->k, &count, &category);
         
         if (parsed >= 2) {
             // Parse algorithm
             if (strcasecmp(algo_str, "knn") == 0) {
+                if(req->k == 0 || category == -1){
+                    fprintf(stderr, "k value null or not received, switching to default k value 3\n", req->k);
+                    temp = count;
+                    count = req->k;
+                    category = temp;
+                    req->k = DEFAULT_K;
+                }
                 req->algorithm = ALGO_KNN;
             } else if (strcasecmp(algo_str, "mf") == 0) {
                 req->algorithm = ALGO_MF;
@@ -317,6 +326,7 @@ int parse_recommendation_command(const char *input, recommendation_request_t *re
                 req->algorithm = ALGO_GRAPH;
             } else {
                 printf("Invalid algorithm '%s'. Using KNN as default.\n", algo_str);
+                printf("Using KNN as default with k = %d.\n", DEFAULT_K);
                 req->algorithm = ALGO_KNN;
             }
             
@@ -335,13 +345,14 @@ void show_recommendation_help() {
     printf("\n=== Recommendation Client Help ===\n");
     printf("Available commands:\n");
     printf("  /help                        - Show this help\n");
-    printf("  /recommend <uid> <algo> [n] [cat] - Get recommendations\n");
+    printf("  /recommend <uid> <algo> [k] [n] [cat] - Get recommendations\n");
     printf("      uid: User ID (0-%d)\n", MAX_USERS-1);
     printf("      algo: knn, mf, graph\n");
+    printf("      k value: set to 0 if algo is not knn\n");
     printf("      n: Number of recommendations (1-%d, default: 5)\n", MAX_RECOMMENDATIONS);
     printf("      cat: Category filter (-1 for none, default: -1)\n");
     printf("  /quit, /exit                 - Quit the application\n");
-    printf("\nExample: /recommend 123 knn 10 2\n");
+    printf("\nExample: /recommend 123 knn 3 10 2\n");
     printf("===============================\n\n");
 }
 

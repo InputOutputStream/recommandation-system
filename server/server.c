@@ -16,6 +16,7 @@
 #include "traitement.h"
 
 #include <ndmath/io.h>
+#include <ndmath/helper.h>
 
 #include <mf/mf.h>
 #include <knn/knn.h>
@@ -137,7 +138,6 @@ void *accept_connections(void *arg) {
             continue;
         }
 
-
         pthread_mutex_lock(&clients_mutex);
         if (client_count < MAX_CLIENT) {
             client_t *client = &clients[client_count];
@@ -148,7 +148,7 @@ void *accept_connections(void *arg) {
             client->active = 1;
             client->client_id = client_count;   
 
-            log_message("New client connected: %d from %s", client->client_id, inet_ntoa(client_addr.sin_addr));
+            log_message("New client connected: %d from %s\n", client->client_id, inet_ntoa(client_addr.sin_addr));
 
             if (pthread_create(&client->receive_thread, NULL, handle_client, client) != 0) {
                 perror("Failed to create client thread");
@@ -159,7 +159,7 @@ void *accept_connections(void *arg) {
                 pthread_detach(client->receive_thread);
             }
         } else {
-            log_message("Maximum clients reached, rejecting connection");
+            log_message("Maximum clients reached, rejecting connection\n");
             close(client_fd);
         }
         pthread_mutex_unlock(&clients_mutex);
@@ -178,7 +178,7 @@ void *handle_client(void *arg) {
         
         if (bytes <= 0) {
             if (bytes == 0) {
-                log_message("Client %d disconnected", client->client_id);
+                log_message("Client %d disconnected\n", client->client_id);
             } else {
                 perror("recv failed");
             }
@@ -190,8 +190,8 @@ void *handle_client(void *arg) {
         // Parse recommendation request
         recommendation_request_t req;
         int category_filter = -1;
-        int parsed = sscanf(buffer, "%d %d %d %d", 
-                           &req.user_id, (int*)&req.algorithm, 
+        int parsed = sscanf(buffer, "%d %d %d %d %d", 
+                           &req.user_id, (int*)&req.algorithm, &req.k,
                            &req.num_recommendations, &category_filter);
         
         if (parsed >= 3) {
@@ -257,7 +257,7 @@ void remove_client(client_t *client) {
     }
     client_count--;
     
-    log_message("Client removed, %d clients remaining", client_count);
+    log_message("Client removed, %d clients remaining\n", client_count);
     pthread_mutex_unlock(&clients_mutex);
 }
 
@@ -265,14 +265,14 @@ void log_message(const char *format, ...) {
     time_t now = time(NULL);
     struct tm *tm_info = localtime(&now);
     
-    printf("[%02d:%02d:%02d] ", tm_info->tm_hour, tm_info->tm_min, tm_info->tm_sec);
+    fprintf(stderr, "[%02d:%02d:%02d] ", tm_info->tm_hour, tm_info->tm_min, tm_info->tm_sec);
     
     va_list args;
     va_start(args, format);
     vprintf(format, args);
     va_end(args);
     
-    printf("\n");
+    fprintf(stderr, "\n");
     fflush(stdout);
 }
 
@@ -289,7 +289,7 @@ void init_recommendation_system() {
     }
     
     pthread_mutex_init(&rec_system.data_mutex, NULL);
-    log_message("Recommendation system initialized");
+    log_message("Recommendation system initialized\n");
 }
 
 void load_ratings_data(const char* filename) {
@@ -299,7 +299,7 @@ void load_ratings_data(const char* filename) {
     }
     
     // Charger le fichier avec ndmath
-    ndarray_t data = load_ndarray((char*)filename, 0);
+    ndarray_t data = load_ndarray(filename, 10);
     
     if (data.data == NULL) {
         log_message("Error: Failed to load ratings data from %s", filename);
@@ -325,23 +325,14 @@ void load_ratings_data(const char* filename) {
     size_t total_rows = data.shape[0];
     
     for (size_t i = 0; i < total_rows && loaded_count < MAX_RATINGS; i++) {
-        // Format attendu: user_id, item_id, rating, [category_id], [timestamp]
+        // Format attendu: user_id, item_id, [category_id], rating , [timestamp]
+
         int user_id = (int)data.data[i][0];
         int item_id = (int)data.data[i][1];
-        float rating = (float)data.data[i][2];
-        
-        // Valeurs par défaut
-        int category_id = 0;
-        time_t timestamp = time(NULL);
-        
-        // Si plus de colonnes disponibles
-        if (data.shape[1] > 3) {
-            category_id = (int)data.data[i][3];
-        }
-        if (data.shape[1] > 4) {
-            timestamp = (time_t)data.data[i][4];
-        }
-        
+        int category_id = (int)data.data[i][2];
+        float rating = (float)data.data[i][3];
+        double timestamp = (double)data.data[i][3];
+
         // Validation des données
         if (user_id < 0 || user_id >= MAX_USERS || 
             item_id < 0 || item_id >= MAX_ITEMS ||
@@ -397,7 +388,9 @@ int add_rating(int user_id, int item_id, int category_id, float rating) {
     r->item_id = item_id;
     r->category_id = category_id;
     r->rating = rating;
-    r->timestamp = time(NULL);
+
+    time_t ti = time(NULL);
+    r->timestamp = (double)ti;
     
     // Synchroniser avec la matrice
     if (user_id < MAX_USERS && item_id < MAX_ITEMS) {
@@ -423,7 +416,7 @@ void get_recommendations(recommendation_request_t* request, recommendation_resul
     
     switch (request->algorithm) {
         case ALGO_KNN:
-            knn_recommendation(request->user_id, 5, results, num_results, request->num_recommendations);
+            knn_recommendation(request->user_id, request->k, results, num_results, request->num_recommendations);
             break;
         case ALGO_MF:
             matrix_factorization_recommendation(request->user_id, results, num_results, request->num_recommendations);
@@ -437,50 +430,156 @@ void get_recommendations(recommendation_request_t* request, recommendation_resul
     }
 }
 
+ndarray_t rating_to_aray(rating_t *ratings, size_t rows, size_t cols)
+{
+    ndarray_t result = array(rows, cols);
+    for(int i = 0; i<rows; i++)
+    { 
+        set(ratings, i, 0, (double)ratings[i].user_id);
+        set(ratings, i, 1, (double)ratings[i].item_id);
+        set(ratings, i, 2, (double)ratings[i].category_id);
+        set(ratings, i, 3, (double)ratings[i].rating);
+        set(ratings, i, 4, (double)ratings[i].timestamp);
+    } 
+   return result;
+}
+
+
 void knn_recommendation(int user_id, int k, recommendation_result_t* results, int* num_results, int max_results) {
     pthread_mutex_lock(&rec_system.data_mutex);
     
-    //Import the logic from libs/libknn.a
+    // Create user-item matrix from rec_system
+    ndarray_t rating_matrix = array(rec_system.num_users, rec_system.num_items);
+    if (!rating_matrix.data) {
+        log_message("Failed to allocate rating matrix for KNN");
+        pthread_mutex_unlock(&rec_system.data_mutex);
+        *num_results = 0;
+        return;
+    }
+
+    // Fill the matrix: 0.0 for unrated, actual rating otherwise
+    for (int u = 0; u < rec_system.num_users; u++) {
+        for (int i = 0; i < rec_system.num_items; i++) {
+            if (rec_system.user_item_matrix[u][i] >= 0) {
+                // Convert back from integer representation
+                set(&rating_matrix, u, i, rec_system.user_item_matrix[u][i] / 10.0);
+            } else {
+                set(&rating_matrix, u, i, 0.0);
+            }
+        }
+    }
+
+    // Initialize KNN model
+    knn_t *model = init_knn(k);
+    if (!model) {
+        log_message("Failed to initialize KNN model");
+        free_array(&rating_matrix);
+        pthread_mutex_unlock(&rec_system.data_mutex);
+        *num_results = 0;
+        return;
+    }
+
+    // Fit the model with the rating matrix
+    model = fitx(model, rating_matrix);
+    if (!model) {
+        log_message("Failed to fit KNN model");
+        free_knn(model);
+        free_array(&rating_matrix);
+        pthread_mutex_unlock(&rec_system.data_mutex);
+        *num_results = 0;
+        return;
+    }
+
+    // Predict ratings for unrated items
+    *num_results = 0;
+    for (int item_id = 0; item_id < rec_system.num_items; item_id++) {
+        // Skip if user has already rated this item
+        if (rec_system.user_item_matrix[user_id][item_id] >= 0) {
+            continue;
+        }
+
+        // Only recommend up to max_results
+        if (*num_results >= max_results) {
+            break;
+        }
+
+        double pred = predict_rating(model, user_id, item_id);
+        results[*num_results].item_id = item_id;
+        results[*num_results].category_id = -1; // Not available in this context
+        results[*num_results].predicted_rating = pred;
+        (*num_results)++;
+    }
+
+    // Clean up
+    free_knn(model);
+    free_array(&rating_matrix);
     pthread_mutex_unlock(&rec_system.data_mutex);
 }
 
-// Complete the matrix_factorization_recommendation function
 void matrix_factorization_recommendation(int user_id, 
                                          recommendation_result_t* results, 
                                          int* num_results, 
                                          int max_results) {
     pthread_mutex_lock(&rec_system.data_mutex);
-
-    // Entraîner le modèle MF sur toutes les données
-    // Ex: batch_size=64, k=10, alpha=0.01, lambda=0.1, epochs=20
-    ndarray_t factorized_matrix = MF("server/data/train_data.txt", 64, 10, 0.01, 0.1, 20);
-
-    // Prédire les notes pour toutes les paires utilisateur-item du test
-    ndarray_t predictions = Predict_all_MF(factorized_matrix, 64, "server/data/test_data.txt");
-
-    // Convertir en liste de transactions pour itérer facilement
-    size_t num_transactions = 0;
-    Transaction* trans = ndarray_to_transactions(predictions, &num_transactions);
-
-    *num_results = 0;
-
-    for (size_t i = 0; i < num_transactions && *num_results < max_results; i++) {
-        if (trans[i].user_id == user_id) {
-            results[*num_results].item_id = trans[i].item_id;
-            results[*num_results].category_id = -1; // Si tu n'as pas de catégorie, ou à calculer plus tard
-            results[*num_results].predicted_rating = trans[i].rating;
-            (*num_results)++;
-        }
+    
+    // Convert ratings to ndarray format
+    ndarray_t ratings = array(rec_system.num_ratings, 5);
+    if (!ratings.data) {
+        log_message("Failed to allocate ratings array");
+        pthread_mutex_unlock(&rec_system.data_mutex);
+        *num_results = 0;
+        return;
     }
-
-    // Cleanup
-    // (tu devrais avoir un free_ndarray ou équivalent)
-    // free_ndarray(factorized_matrix);
-    // free_ndarray(predictions);
-    free(trans);
-
+    
+    for (int i = 0; i < rec_system.num_ratings; i++) {
+        set(&ratings, i, 0, (double)rec_system.ratings[i].user_id);
+        set(&ratings, i, 1, (double)rec_system.ratings[i].item_id);
+        set(&ratings, i, 2, (double)rec_system.ratings[i].category_id);
+        set(&ratings, i, 3, (double)rec_system.ratings[i].rating);
+        set(&ratings, i, 4, (double)rec_system.ratings[i].timestamp);
+    }
+    
+    // Save to temp file for MF processing
+    save_ndarray(&ratings, "server/data/temp_ratings.txt");
+    
+    // Train MF model
+    ndarray_t full_matrix = MF("server/data/temp_ratings.txt", 64, 10, 0.01, 0.1, 20);
+    if (full_matrix.shape[0] == 0) {
+        log_message("Matrix factorization failed");
+        free_array(&ratings);
+        pthread_mutex_unlock(&rec_system.data_mutex);
+        *num_results = 0;
+        return;
+    }
+    
+    // Get recommendations for this user
+    *num_results = 0;
+    for (int item_id = 0; item_id < full_matrix.shape[1]; item_id++) {
+        // Skip if user has already rated this item
+        if (user_id < rec_system.num_users && 
+            item_id < rec_system.num_items && 
+            rec_system.user_item_matrix[user_id][item_id] >= 0) {
+            continue;
+        }
+        
+        // Only recommend up to max_results
+        if (*num_results >= max_results) {
+            break;
+        }
+        
+        double pred_rating = full_matrix.data[user_id][item_id];
+        results[*num_results].item_id = item_id;
+        results[*num_results].category_id = -1; // Not available in this context
+        results[*num_results].predicted_rating = pred_rating;
+        (*num_results)++;
+    }
+    
+    // Clean up
+    free_array(&full_matrix);
+    free_array(&ratings);
     pthread_mutex_unlock(&rec_system.data_mutex);
 }
+
 
 
 void graph_recommendation(int user_id, recommendation_result_t* results, int* num_results, int max_results) {
@@ -488,10 +587,65 @@ void graph_recommendation(int user_id, recommendation_result_t* results, int* nu
     
     *num_results = 0;
     
-    // Build a simple user-item bipartite graph and recommend based on random walks
-    // Find items rated by users who have similar taste (co-occurrence based)
+    // Vérifier si l'utilisateur existe
+    if (user_id < 0 || user_id >= rec_system.num_users) {
+        log_message("Invalid user ID: %d", user_id);
+        pthread_mutex_unlock(&rec_system.data_mutex);
+        return;
+    }
+
+    // Initialiser le graphe bipartite
+    b_graph_t graph;
+    init_graph(&graph, rec_system.num_users, rec_system.num_items);
     
-    //Import the graph logic in libs/libgraph.a here
+    // Ajouter les interactions utilisateur-item
+    for (int i = 0; i < rec_system.num_ratings; i++) {
+        rating_t r = rec_system.ratings[i];
+        if (r.rating > 0.0) { // Considérer seulement les ratings positifs
+            add_interaction(&graph, r.user_id, r.item_id);
+        }
+    }
+
+    // Exécuter l'algorithme PageRank
+    run_pagerank(&graph);
+
+    // Créer un tableau pour les scores des items
+    ItemScore items[MAX_ITEMS];
+    int count = 0;
     
+    // Collecter les items non notés par l'utilisateur
+    for (int item_id = 0; item_id < rec_system.num_items; item_id++) {
+        // Vérifier si l'utilisateur n'a pas noté cet item
+        if (rec_system.user_item_matrix[user_id][item_id] < 0) {
+            items[count].item_id = item_id;
+            items[count].score = graph.pr[graph.num_users + item_id];
+            count++;
+        }
+    }
+
+    // Trier les items par score décroissant (tri par sélection)
+    for (int i = 0; i < count - 1; i++) {
+        int max_idx = i;
+        for (int j = i + 1; j < count; j++) {
+            if (items[j].score > items[max_idx].score) {
+                max_idx = j;
+            }
+        }
+        if (max_idx != i) {
+            ItemScore temp = items[i];
+            items[i] = items[max_idx];
+            items[max_idx] = temp;
+        }
+    }
+
+    // Sélectionner les top-N recommandations
+    int recommendations = (max_results < count) ? max_results : count;
+    for (int i = 0; i < recommendations; i++) {
+        results[*num_results].item_id = items[i].item_id;
+        results[*num_results].category_id = -1; // À remplir si disponible
+        results[*num_results].predicted_rating = items[i].score;
+        (*num_results)++;
+    }
+
     pthread_mutex_unlock(&rec_system.data_mutex);
 }

@@ -2,8 +2,8 @@
 #define GRAPH
 
 
-#define MAX_USERS 100
-#define MAX_ITEMS 100
+#define max_users 9999
+#define max_items 9999
 #define MAX_ITER 50
 #define DAMPING_FACTOR 0.85
 #define EPSILON 1e-6
@@ -11,9 +11,9 @@
 typedef struct BipartiteGraph {
     int num_users;
     int num_items;
-    int user_item[MAX_USERS][MAX_ITEMS];  // Adjacency matrix
-    double pr[MAX_USERS + MAX_ITEMS];     // PageRank scores
-    double pr_new[MAX_USERS + MAX_ITEMS]; 
+    int user_item[max_users][max_items];  // Adjacency matrix
+    double pr[max_users + max_items];     // PageRank scores
+    double pr_new[max_users + max_items]; 
 } b_graph_t;
 
 
